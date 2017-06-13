@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/apcera/termtables"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/dns/v1"
@@ -71,7 +72,12 @@ func setRecord(host string, ip string, project string, managedZone string) error
 	}
 
 	_, err = c.Changes.Create(project, managedZone, change).Do()
-	return err
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("A record of %s has changed (new IP address: %s).\n", host, ip)
+	return nil
 }
 
 func printRecordSets(project string, managedZone string) error {
@@ -85,14 +91,21 @@ func printRecordSets(project string, managedZone string) error {
 		return err
 	}
 
-	for _, rrset := range rrsetList.Rrsets {
-		fmt.Printf("%s\t%s\n", rrset.Name, rrset.Type)
-		for _, rrdata := range rrset.Rrdatas {
-			fmt.Println(rrdata)
+	table := termtables.CreateTable()
+	table.AddHeaders("Name", "Type", "Value")
+
+	for i, rrset := range rrsetList.Rrsets {
+		if i > 0 {
+			table.AddSeparator()
 		}
-		fmt.Println("-------------")
+
+		table.AddRow(rrset.Name, rrset.Type, rrset.Rrdatas[0])
+		for _, rrdata := range rrset.Rrdatas[1:] {
+			table.AddRow("", "", rrdata)
+		}
 	}
 
+	fmt.Println(table.Render())
 	return nil
 }
 
